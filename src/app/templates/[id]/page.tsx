@@ -1,0 +1,242 @@
+"use client";
+
+import { useEffect, useState, use } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+interface Template {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  category: string | null;
+  variables: string | null;
+  isAiGenerated: boolean;
+  createdAt: string;
+}
+
+export default function TemplateDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const router = useRouter();
+  const [template, setTemplate] = useState<Template | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [category, setCategory] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    fetch(`/api/templates/${id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setTemplate(data);
+        setName(data.name);
+        setSubject(data.subject);
+        setBody(data.body);
+        setCategory(data.category || "");
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  async function handleSave() {
+    if (!name.trim() || !subject.trim() || !body.trim()) {
+      setError("Name, subject, and body are required");
+      return;
+    }
+
+    setIsSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`/api/templates/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          subject: subject.trim(),
+          body: body.trim(),
+          category: category.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      const updated = await res.json();
+      setTemplate(updated);
+      setEditing(false);
+      setSuccess("Template updated successfully!");
+    } catch {
+      setError("Failed to update template");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("Are you sure you want to delete this template?")) return;
+    try {
+      await fetch(`/api/templates/${id}`, { method: "DELETE" });
+      router.push("/templates");
+    } catch {
+      setError("Failed to delete template");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!template) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-slate-400">Template not found</p>
+        <Link href="/templates" className="text-violet-400 hover:text-violet-300 mt-2 inline-block">
+          Back to Templates
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <Link href="/templates" className="text-slate-400 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-white">{template.name}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              {template.category && (
+                <span className="px-2 py-0.5 text-xs font-medium rounded bg-slate-800 text-slate-400">
+                  {template.category}
+                </span>
+              )}
+              {template.isAiGenerated && (
+                <span className="px-2 py-0.5 text-xs font-medium rounded bg-violet-500/20 text-violet-400">
+                  AI Generated
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setEditing(!editing)}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {editing ? "Cancel Edit" : "Edit"}
+          </button>
+          <button
+            onClick={handleDelete}
+            className="px-4 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm font-medium rounded-lg transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm">
+          {success}
+        </div>
+      )}
+
+      {editing ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1.5">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1.5">Category</label>
+            <input
+              type="text"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1.5">Subject</label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1.5">Body</label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={14}
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all resize-none"
+            />
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+          >
+            {isSaving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      ) : (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="p-6 border-b border-slate-800">
+            <p className="text-xs font-medium text-slate-500 mb-1">SUBJECT</p>
+            <p className="text-lg text-white">{template.subject}</p>
+          </div>
+          <div className="p-6">
+            <p className="text-xs font-medium text-slate-500 mb-2">BODY</p>
+            <pre className="text-sm text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">
+              {template.body}
+            </pre>
+          </div>
+          {template.variables && (
+            <div className="p-6 border-t border-slate-800">
+              <p className="text-xs font-medium text-slate-500 mb-2">VARIABLES</p>
+              <div className="flex gap-2 flex-wrap">
+                {template.variables.split(",").map((v) => (
+                  <code
+                    key={v.trim()}
+                    className="px-2 py-0.5 bg-slate-800 text-violet-400 rounded text-xs font-mono"
+                  >
+                    {v.trim()}
+                  </code>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
