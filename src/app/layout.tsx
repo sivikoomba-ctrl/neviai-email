@@ -13,6 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "NeviAI Email Automation",
   description: "AI-powered email automation platform",
