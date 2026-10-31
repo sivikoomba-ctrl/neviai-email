@@ -3,6 +3,7 @@ import axios from "axios";
 const crmApi = axios.create({
   baseURL: process.env.CRM_APP_URL || "http://localhost:3000",
   timeout: 10000,
+  headers: { "x-neviai-proxy": process.env.PROXY_SECRET ?? "" },
 });
 
 export async function getContacts(query?: string) {
